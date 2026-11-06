@@ -1,0 +1,431 @@
+<?php
+session_start();
+if (!isset($_SESSION['usuario_id']) || $_SESSION['rol'] !== 'administrador') {
+    header('Location: index.php');
+    exit;
+}
+?>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Inventario - Marisquería</title>
+    <!-- FontAwesome Font Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        tealbg: '#088F9E',
+                        pillgray: '#D9D9D9',
+                        pillhover: '#C0C0C0',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #088F9E;
+            user-select: none;
+        }
+        /* Personalización de scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-tealbg flex flex-col p-4 md:p-6 text-gray-800">
+
+    <!-- Botón de Inventariado con icono -->
+<a href="index.php" style="
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: gray;
+    color: #fff;
+    padding: 14px 25px;
+    border-radius: 10px;
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 16px;
+    margin: 10px 0;
+">
+    Caja
+</a>
+
+
+    <!-- Top Bar Header con Logo de Caja Registradora -->
+    <header class="w-full flex items-center justify-between mb-4 px-2">
+        <div class="flex items-center space-x-3">
+            <div class="bg-blue-600 text-white p-3 rounded-xl shadow-lg flex items-center justify-center border-2 border-blue-400">
+                <i class="fa-solid fa-cash-register text-2xl md:text-3xl"></i>
+            </div>
+            <span class="text-white font-bold text-xl md:text-2xl tracking-wide hidden sm:inline">Punto de Inventario</span>
+        </div>
+
+        <!-- Filtros de Categorías Superior Derecha -->
+        <div class="flex flex-wrap gap-2 md:gap-4 justify-end" id="categoryFilters">
+            <button onclick="filterCategory('Pez')" class="cat-btn px-5 py-2 bg-pillgray hover:bg-pillhover text-black font-semibold rounded-full shadow-sm transition-all text-sm md:text-base border border-gray-300">
+                Pez
+            </button>
+            <button onclick="filterCategory('Cubiertos')" class="cat-btn px-5 py-2 bg-pillgray hover:bg-pillhover text-black font-semibold rounded-full shadow-sm transition-all text-sm md:text-base border border-gray-300">
+                Cubiertos
+            </button>
+            <button onclick="filterCategory('Bebidas')" class="cat-btn px-5 py-2 bg-pillgray hover:bg-pillhover text-black font-semibold rounded-full shadow-sm transition-all text-sm md:text-base border border-gray-300">
+                Bebidas
+            </button>
+            <button onclick="filterCategory('materiales')" class="cat-btn px-5 py-2 bg-pillgray hover:bg-pillhover text-black font-semibold rounded-full shadow-sm transition-all text-sm md:text-base border border-gray-300">
+                materiales
+            </button>
+            <button onclick="filterCategory('Todos')" class="cat-btn px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-full shadow-sm transition-all text-sm md:text-base">
+                Todos
+            </button>
+        </div>
+    </header>
+
+    <!-- Contenido Principal Grid -->
+    <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- Panel Izquierdo: Formulario de Selección / Edición -->
+        <section class="lg:col-span-5 flex flex-col space-y-5 bg-tealbg rounded-xl">
+            <!-- Marco Grande de Imagen Seleccionada -->
+            <div class="w-full bg-gray-100 rounded-3xl overflow-hidden shadow-xl border-4 border-white/20 aspect-video md:aspect-[4/3] flex items-center justify-center relative group">
+                <img id="mainProductImage" src="https://images.unsplash.com/photo-1565680018434-b513d5e5fd47?auto=format&fit=crop&w=600&q=80" 
+                     alt="Producto Seleccionado" 
+                     class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                     onerror="this.src='https://placehold.co/600x400/cccccc/333333?text=Sin+Imagen'">
+                <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-start p-3">
+                    <span class="text-white text-xs bg-black/60 px-2 py-1 rounded">Vista previa del producto</span>
+                </div>
+            </div>
+
+            <!-- Formulario: Campos de Texto -->
+            <div class="flex flex-col sm:flex-row gap-3 w-full">
+                <div class="flex-1">
+                    <label class="block text-white text-xs font-bold mb-1">Nombre del Producto</label>
+                    <input type="text" id="inputNombre" placeholder="Nombre (ej. Camarón)" 
+                           class="w-full px-4 py-2 bg-white text-black font-bold text-lg md:text-xl rounded-md shadow focus:outline-none focus:ring-2 focus:ring-blue-400">
+                </div>
+                <div class="w-full sm:w-28">
+                    <label class="block text-white text-xs font-bold mb-1">Cantidad</label>
+                    <input type="number" id="inputCantidad" placeholder="1" min="0" value="1" 
+                           class="w-full px-4 py-2 bg-white text-black font-bold text-lg md:text-xl rounded-md shadow text-center focus:outline-none focus:ring-2 focus:ring-blue-400">
+                </div>
+            </div>
+
+            <!-- Campo adicional para la categoría al insertar/modificar -->
+            <div class="flex gap-3">
+                <div class="flex-1">
+                    <label class="block text-white text-xs font-bold mb-1">Categoría</label>
+                    <select id="selectCategoria" class="w-full px-3 py-2 bg-white text-gray-800 font-semibold rounded-md shadow focus:outline-none focus:ring-2 focus:ring-blue-400">
+                        <option value="Pez">Pez</option>
+                        <option value="Cubiertos">Cubiertos</option>
+                        <option value="Bebidas">Bebidas</option>
+                        <option value="materiales">materiales</option>
+                    </select>
+                </div>
+                <div class="flex-1">
+                    <label class="block text-white text-xs font-bold mb-1">URL de Imagen (Opcional)</label>
+                    <input type="text" id="inputImagen" placeholder="https://..." 
+                           class="w-full px-3 py-2 bg-white text-gray-800 rounded-md shadow text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                </div>
+            </div>
+
+            <!-- Botones de Acción Formato Píldora -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+                <button onclick="insertarProducto()" class="px-4 py-3 bg-pillgray hover:bg-pillhover active:scale-95 text-black font-bold rounded-full shadow-md transition-all border border-gray-300 text-center text-sm md:text-base">
+                    Insertar
+                </button>
+                <button onclick="modificarProducto()" class="px-4 py-3 bg-pillgray hover:bg-pillhover active:scale-95 text-black font-bold rounded-full shadow-md transition-all border border-gray-300 text-center text-sm md:text-base">
+                    Modificar
+                </button>
+                <button onclick="buscarProducto()" class="px-4 py-3 bg-pillgray hover:bg-pillhover active:scale-95 text-black font-bold rounded-full shadow-md transition-all border border-gray-300 text-center text-sm md:text-base">
+                    Buscar
+                </button>
+                <button onclick="eliminarProducto()" class="px-4 py-3 bg-pillgray hover:bg-pillhover active:scale-95 text-black font-bold rounded-full shadow-md transition-all border border-gray-300 text-center text-sm md:text-base">
+                    Eliminar
+                </button>
+            </div>
+
+            <!-- Toast / Mensajes de Feedback -->
+            <div id="toast" class="hidden p-3 rounded-lg text-white font-medium text-center shadow-lg transition-all duration-300"></div>
+        </section>
+
+        <!-- Panel Derecho: Área Blanca Principal con Cuadrícula de Productos -->
+        <section class="lg:col-span-7 bg-white rounded-xl shadow-2xl p-6 min-h-[500px] flex flex-col justify-between">
+            <div>
+                <!-- Encabezado de la cuadrícula -->
+                <div class="flex justify-between items-center mb-6 pb-2 border-b border-gray-200">
+                    <h2 class="text-xl font-bold text-gray-700 flex items-center gap-2">
+                        <i class="fa-solid fa-boxes-stacked text-tealbg"></i>
+                        Inventario Actual
+                    </h2>
+                    <span id="categoriaActualTag" class="bg-tealbg text-white text-xs font-semibold px-3 py-1 rounded-full">
+                        Categoría: Todos
+                    </span>
+                </div>
+
+                <!-- Grid de Productos -->
+                <div id="productsGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-6">
+                    <!-- Las tarjetas se generan dinámicamente -->
+                </div>
+            </div>
+
+            <!-- Pie de inventario con estadísticas básicas -->
+            <div class="mt-8 pt-4 border-t border-gray-100 flex justify-between items-center text-xs text-gray-500 font-semibold">
+                <span id="totalItemsCount">Total de productos: 0</span>
+                <span>Almacenamiento Local (Simulado)</span>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- JavaScript para Lógica de Estado y Persistencia -->
+    <script>
+        // Datos por defecto si no existe inventario previo en localStorage
+        const defaultProducts = [
+            { id: 1, nombre: 'Camarón', cantidad: 2, categoria: 'Pez', imagen: 'https://images.unsplash.com/photo-1565680018434-b513d5e5fd47?auto=format&fit=crop&w=400&q=80' },
+            { id: 2, nombre: 'Filete de Pescado', cantidad: 15, categoria: 'Pez', imagen: 'https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?auto=format&fit=crop&w=400&q=80' },
+            { id: 3, nombre: 'Pulpo Fresco', cantidad: 8, categoria: 'Pez', imagen: 'https://charal.com.mx/wp-content/uploads/2026/03/PULPO_CRUDO_4_6.jpg' },
+            { id: 4, nombre: 'Tenedor Marisquero', cantidad: 40, categoria: 'Cubiertos', imagen: 'https://jopco.net/wp-content/uploads/2023/05/WI-0035-07-623x623.jpg' },
+            { id: 5, nombre: 'Refresco Cola', cantidad: 24, categoria: 'Bebidas', imagen: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=400&q=80' },
+            { id: 6, nombre: 'Cajas de Empaque', cantidad: 100, categoria: 'materiales', imagen: 'https://www.adosa.com.mx/media/catalog/product/0/8/085410_1.jpg?quality=100&fit=bounds&height=580&width=580' }
+        ];
+
+        // Estado global del programa
+        let productos = JSON.parse(localStorage.getItem('mariscos_inventory')) || defaultProducts;
+        let selectedProductId = 1; // Por defecto seleccionado Camarón
+        let currentFilter = 'Todos';
+
+        // Guardar estado en LocalStorage
+        function saveState() {
+            localStorage.setItem('mariscos_inventory', JSON.stringify(productos));
+        }
+
+        // Mostrar notificaciones flotantes (en lugar de alert())
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.innerText = message;
+            toast.classList.remove('hidden', 'bg-green-600', 'bg-red-600', 'bg-blue-600', 'bg-amber-600');
+            
+            if (type === 'success') toast.classList.add('bg-green-600');
+            else if (type === 'error') toast.classList.add('bg-red-600');
+            else if (type === 'warning') toast.classList.add('bg-amber-600');
+            else toast.classList.add('bg-blue-600');
+
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+
+        // Renderizar Cuadrícula de Productos
+        function renderProducts() {
+            const grid = document.getElementById('productsGrid');
+            grid.innerHTML = '';
+
+            const filtered = currentFilter === 'Todos' 
+                ? productos 
+                : productos.filter(p => p.categoria.toLowerCase() === currentFilter.toLowerCase());
+
+            document.getElementById('totalItemsCount').innerText = `Total de tipos de productos: ${filtered.length}`;
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-12 text-gray-400">
+                    <i class="fa-solid fa-box-open text-4xl mb-2"></i>
+                    <p>No se encontraron productos en esta categoría.</p>
+                </div>`;
+                return;
+            }
+
+            filtered.forEach(prod => {
+                const isSelected = prod.id === selectedProductId;
+                
+                const card = document.createElement('div');
+                card.className = `flex flex-col items-center cursor-pointer transition-all duration-200 transform hover:-translate-y-1 ${isSelected ? 'scale-105' : ''}`;
+                card.onclick = () => selectProduct(prod.id);
+
+                card.innerHTML = `
+                    <div class="w-24 h-24 md:w-28 md:h-28 rounded-2xl overflow-hidden border-2 ${isSelected ? 'border-tealbg ring-4 ring-tealbg/30 shadow-lg' : 'border-gray-200 shadow'} bg-gray-50 flex items-center justify-center">
+                        <img src="${prod.imagen}" alt="${prod.nombre}" 
+                             class="w-full h-full object-cover"
+                             onerror="this.src='https://placehold.co/150x150/cccccc/333333?text=${encodeURIComponent(prod.nombre)}'">
+                    </div>
+                    <span class="font-bold text-gray-900 text-sm md:text-base mt-2 text-center line-clamp-1">${prod.nombre}</span>
+                    <span class="font-black text-xl md:text-2xl text-gray-800">${prod.cantidad}</span>
+                `;
+
+                grid.appendChild(card);
+            });
+        }
+
+        // Seleccionar producto y cargar sus datos en la izquierda
+        function selectProduct(id) {
+            const prod = productos.find(p => p.id === id);
+            if (!prod) return;
+
+            selectedProductId = prod.id;
+            document.getElementById('inputNombre').value = prod.nombre;
+            document.getElementById('inputCantidad').value = prod.cantidad;
+            document.getElementById('selectCategoria').value = prod.categoria;
+            document.getElementById('inputImagen').value = prod.imagen || '';
+            document.getElementById('mainProductImage').src = prod.imagen || 'https://placehold.co/600x400/cccccc/333333?text=Sin+Imagen';
+
+            renderProducts();
+        }
+
+        // Botón Insertar: Agregar nuevo producto
+        function insertarProducto() {
+            const nombre = document.getElementById('inputNombre').value.trim();
+            const cantidad = parseInt(document.getElementById('inputCantidad').value) || 0;
+            const categoria = document.getElementById('selectCategoria').value;
+            let imagen = document.getElementById('inputImagen').value.trim();
+
+            if (!nombre) {
+                showToast('Por favor introduce un nombre de producto', 'warning');
+                return;
+            }
+
+            if (!imagen) {
+                imagen = `https://placehold.co/400x400/088F9E/ffffff?text=${encodeURIComponent(nombre)}`;
+            }
+
+            const nuevoProd = {
+                id: Date.now(),
+                nombre: nombre,
+                cantidad: cantidad,
+                categoria: categoria,
+                imagen: imagen
+            };
+
+            productos.push(nuevoProd);
+            saveState();
+            selectProduct(nuevoProd.id);
+            showToast(`Producto "${nombre}" guardado en la base de datos`, 'success');
+        }
+
+        // Botón Modificar: Actualizar producto seleccionado
+        function modificarProducto() {
+            if (!selectedProductId) {
+                showToast('Selecciona un producto para modificar', 'warning');
+                return;
+            }
+
+            const index = productos.findIndex(p => p.id === selectedProductId);
+            if (index === -1) {
+                showToast('Producto no encontrado', 'error');
+                return;
+            }
+
+            const nombre = document.getElementById('inputNombre').value.trim();
+            const cantidad = parseInt(document.getElementById('inputCantidad').value) || 0;
+            const categoria = document.getElementById('selectCategoria').value;
+            const imagen = document.getElementById('inputImagen').value.trim();
+
+            if (!nombre) {
+                showToast('El nombre del producto no puede estar vacío', 'warning');
+                return;
+            }
+
+            productos[index].nombre = nombre;
+            productos[index].cantidad = cantidad;
+            productos[index].categoria = categoria;
+            if (imagen) productos[index].imagen = imagen;
+
+            saveState();
+            selectProduct(selectedProductId);
+            showToast(`Producto "${nombre}" actualizado correctamente`, 'success');
+        }
+
+        // Botón Buscar: Filtrar por nombre en el formulario o en la cuadrícula
+        function buscarProducto() {
+            const query = document.getElementById('inputNombre').value.trim().toLowerCase();
+            if (!query) {
+                showToast('Escribe un nombre en el campo para buscar', 'info');
+                return;
+            }
+
+            const encontrado = productos.find(p => p.nombre.toLowerCase().includes(query));
+            if (encontrado) {
+                selectProduct(encontrado.id);
+                showToast(`Producto encontrado: ${encontrado.nombre}`, 'success');
+            } else {
+                showToast(`No se encontró ningún producto con "${query}"`, 'error');
+            }
+        }
+
+        // Botón Eliminar: Borrar producto seleccionado
+        function eliminarProducto() {
+            if (!selectedProductId) {
+                showToast('Selecciona un producto para eliminar', 'warning');
+                return;
+            }
+
+            const index = productos.findIndex(p => p.id === selectedProductId);
+            if (index === -1) return;
+
+            const nombre = productos[index].nombre;
+            productos.splice(index, 1);
+            saveState();
+
+            if (productos.length > 0) {
+                selectProduct(productos[0].id);
+            } else {
+                selectedProductId = null;
+                document.getElementById('inputNombre').value = '';
+                document.getElementById('inputCantidad').value = '1';
+                document.getElementById('mainProductImage').src = 'https://placehold.co/600x400/cccccc/333333?text=Sin+Productos';
+                renderProducts();
+            }
+
+            showToast(`Producto "${nombre}" eliminado de la base de datos`, 'error');
+        }
+
+        // Filtrar por categorías desde los botones superiores
+        function filterCategory(cat) {
+            currentFilter = cat;
+            document.getElementById('categoriaActualTag').innerText = `Categoría: ${cat}`;
+            
+            // Resaltar botón de categoría activo
+            const buttons = document.querySelectorAll('.cat-btn');
+            buttons.forEach(btn => {
+                if (btn.innerText.trim().toLowerCase() === cat.toLowerCase()) {
+                    btn.classList.remove('bg-pillgray', 'hover:bg-pillhover', 'text-black');
+                    btn.classList.add('bg-blue-700', 'text-white');
+                } else {
+                    btn.classList.remove('bg-blue-700', 'text-white');
+                    btn.classList.add('bg-pillgray', 'hover:bg-pillhover', 'text-black');
+                }
+            });
+
+            renderProducts();
+        }
+
+        // Inicializar aplicación al cargar la página
+        window.onload = function() {
+            renderProducts();
+            if (productos.length > 0) {
+                selectProduct(productos[0].id);
+            }
+        };
+    </script>
+</body>
+</html>
